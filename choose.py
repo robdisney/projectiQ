@@ -1,8 +1,9 @@
 import tkinter as tk
 from tkinter import ttk
 from pathlib import Path
+import os
 
-project_directory = "<path_to_project_directory>"
+project_directory = "<name_of_your_project_directory>" ### <--- change this to the name of your project folder to include
 
 class FileTreeApp:
     def __init__(self, root, base_path):
@@ -12,8 +13,14 @@ class FileTreeApp:
         self.tree.pack(expand=True, fill='both')
         self.selected_items = set()
         self.item_sizes = {}
+
+        # Load exclusions from exclude.py if available
+        self.exclude_patterns = self.load_exclusions()
+
+        # Calculate total size excluding pre-selected items
         self.total_size = self.calculate_total_size(self.base_path)
-        self.remaining_size = self.total_size
+        self.selected_size = self.calculate_selected_size()
+        self.remaining_size = self.total_size - self.selected_size
 
         self.populate_tree(self.base_path, "")
 
@@ -27,6 +34,21 @@ class FileTreeApp:
 
         save_btn = tk.Button(btn_frame, text="Save Exclusions", command=self.save_exclusions)
         save_btn.pack(side='right')
+
+    def load_exclusions(self):
+        # Check if exclude.py exists and load it
+        if os.path.exists('exclude.py'):
+            exclude_globals = {}
+            with open('exclude.py', 'r') as f:
+                exec(f.read(), exclude_globals)
+            exclude_patterns = exclude_globals.get('exclude_patterns', [])
+            self.selected_items.update(exclude_patterns)
+            return exclude_patterns
+        return []
+
+    def should_exclude(self, path):
+        # Check if the path matches any of the exclude patterns
+        return any(str(path).startswith(pattern) for pattern in self.exclude_patterns)
 
     def populate_tree(self, path, parent):
         for p in path.iterdir():
@@ -43,11 +65,21 @@ class FileTreeApp:
 
             self.item_sizes[str(p)] = size
             node = self.tree.insert(parent, 'end', text=p.name + size_text, open=True)
+            if str(p) in self.selected_items:
+                self.tree.item(node, tags=('selected',))  # Highlight if in selected items
+
             if p.is_dir():
                 self.populate_tree(p, node)
 
+        self.tree.tag_configure('selected', background='lightblue')
+
     def calculate_total_size(self, path):
-        return sum(p.stat().st_size for p in path.rglob('*') if p.is_file())
+        # Calculate the total size, excluding already excluded items
+        return sum(p.stat().st_size for p in path.rglob('*') if p.is_file() and not self.should_exclude(p))
+
+    def calculate_selected_size(self):
+        # Calculate the size of the pre-selected items
+        return sum(self.item_sizes[item] for item in self.selected_items if item in self.item_sizes)
 
     def on_item_click(self, event):
         item_id = self.tree.identify_row(event.y)
@@ -65,7 +97,9 @@ class FileTreeApp:
 
     def select_item(self, item):
         item_path = self.get_full_path(item)
-        self.selected_items.add(item_path)
+        if item_path not in self.selected_items:
+            self.selected_items.add(item_path)
+            self.selected_size += self.item_sizes.get(item_path, 0)
         for child in self.tree.get_children(item):
             self.select_item(child)
 
@@ -73,6 +107,7 @@ class FileTreeApp:
         item_path = self.get_full_path(item)
         if item_path in self.selected_items:
             self.selected_items.remove(item_path)
+            self.selected_size -= self.item_sizes.get(item_path, 0)
         for child in self.tree.get_children(item):
             self.deselect_item(child)
 
@@ -90,8 +125,6 @@ class FileTreeApp:
         for child in self.tree.get_children(item):
             self.update_item_color(child)
 
-        self.tree.tag_configure('selected', background='lightblue')
-
     def get_full_path(self, item):
         path_parts = []
         while item:
@@ -100,8 +133,7 @@ class FileTreeApp:
         return str(self.base_path.joinpath(*path_parts))
 
     def update_remaining_size(self):
-        selected_size = sum(self.item_sizes[item] for item in self.selected_items if item in self.item_sizes)
-        self.remaining_size = self.total_size - selected_size
+        self.remaining_size = self.total_size - self.selected_size
         self.size_label.config(text=f"Total Size: {self.remaining_size} bytes")
 
     def save_exclusions(self):
