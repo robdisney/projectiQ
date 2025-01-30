@@ -1,3 +1,7 @@
+### before trying to run this script, scroll to the bottom and
+### change the line: target_dir = 'project' to your project 
+### folder, which should be located within the directory where
+### you run this script.
 import asyncio
 import subprocess
 from openai import AsyncOpenAI
@@ -54,7 +58,7 @@ async def main():
     doc = Path('project.txt').read_text(errors="ignore")
 
     # Specify the target directory
-    target_dir = 'project' # change this to your desired target project directory
+    target_dir = 'project' # <----------------change this to your desired target project directory
 
     # Get the tree and files contents
     tree, files_contents = get_tree_and_files_contents(target_dir)
