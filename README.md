@@ -1,0 +1,2 @@
+# projectiQ
+coding project assistant
