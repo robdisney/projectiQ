@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import ttk
 from pathlib import Path
 
+project_directory = "<path_to_project_directory>"
+
 class FileTreeApp:
     def __init__(self, root, base_path):
         self.root = root
@@ -122,6 +124,6 @@ if __name__ == "__main__":
     style = ttk.Style()
     style.configure('Treeview', rowheight=25)
 
-    app = FileTreeApp(root, 'openstack')  # Replace with your actual directory
+    app = FileTreeApp(root, project_directory)  # Replace with your actual directory
 
     root.mainloop()
